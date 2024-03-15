@@ -61,14 +61,6 @@ struct Goods{
     int val;    //物品价值
     int left_time;  //剩余存在时间
     int targeted; //被哪个机器人锁定，没有被锁定时为-1
-    Goods(int x,int y, int val)
-    {
-        this->x = x;
-        this->y = y;
-        this->val = val;
-        this->left_time = goods_time;
-        this->targeted = -1;
-    }
 };
 
 map<int,Goods> gds;
@@ -89,7 +81,7 @@ bool IsOkRobotPath(int x, int y)
 {
     if( x < 1  || x > 200 || y < 1 || y > 200 ) return false;
     for(int i = 0 ; i < 10 ; i ++){
-        if(x == robot[i].x && x == robot[i].y == y) return false;
+        if(x == robot[i].x && robot[i].y == y) return false;
     }
     if(MAP[x][y] == '#' || MAP[x][y] == 'B' || MAP[x][y] == '*') return false;
     return true;
@@ -100,11 +92,9 @@ bool IsOkRobotPath(int x, int y)
 void robot_move(int robotid)
 {
     if(robot[robotid].path.size() == 0) return;
-    if(robot[robotid].pathid<robot[robotid].path.size()){
+    if(robot[robotid].path[robot[robotid].pathid]){
         printf("move %d %d\n",robotid, robot[robotid].path[robot[robotid].pathid]);
         robot[robotid].pathid++;
-        
-        /*加上mbx,mby的计算*/
     }
 }
 
@@ -257,7 +247,7 @@ int Input(int zhen)
     {
         int x, y, val;
         scanf("%d%d%d", &x, &y, &val);
-        Goods new_goods{x, y, val};  
+        Goods new_goods{x, y, val,goods_time,-1};  
         gds[zhen*10 + num] = new_goods;
     }
 
