@@ -64,8 +64,8 @@ struct Goods{
 };
 
 map<int,Goods> gds;
-int dis[N + 1][N + 1];
-pair<int, int> prev_step[N + 1][N + 1];
+int dis[N][N];
+pair<int, int> prev_step[N][N];
 
 //货物存在时间减少
 void dec_gdstime()
@@ -77,15 +77,16 @@ void dec_gdstime()
     }
 }
 //判断(x,y)是否是机器人下一个可以去往的点
-bool IsOkRobotPath(int x, int y)
-{
-    if( x < 1  || x > 200 || y < 1 || y > 200 ) return false;
-    for(int i = 0 ; i < 10 ; i ++){
-        if(x == robot[i].x && robot[i].y == y) return false;
+bool IsOkRobotPath(int robotid, int x, int y) {
+    if (x < 0 || x > 199 || y < 0 || y >199) return false;
+    for (int i = 0; i < robot_num; i++) {
+        if(i==robotid) continue;
+        if (x == robot[i].x && y == robot[i].y) return false;
     }
-    if(MAP[x][y] == '#' || MAP[x][y] == 'B' || MAP[x][y] == '*') return false;
+    if (MAP[x + 1][y + 1] == '#' || MAP[x + 1][y + 1] == 'B' || MAP[x + 1][y + 1] == '*') return false;
     return true;
 }
+
 
 
 //机器人单步移动指令
@@ -99,14 +100,14 @@ void robot_move(int robotid)
 }
 
 // BFS寻找从(startX, startY)到最优货物的最短路径
-pair<vector<int>, int> FindPath(int sX, int sY) {
+pair<vector<int>, int> FindPath(int robotid, int sX, int sY) {
     queue<pair<int, int>> q;
     vector<int> path;
     int target_index = -1;
-    double max_priority = -1.0;  // 初始化最大优先级为负数
+    double max_priority = -1.0;
 
-    for (int i = 0; i <= N; ++i) {
-        for (int j = 0; j <= N; ++j) {
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
             dis[i][j] = INF;
             prev_step[i][j] = make_pair(-1, -1);
         }
@@ -122,15 +123,11 @@ pair<vector<int>, int> FindPath(int sX, int sY) {
         int x = current.first;
         int y = current.second;
 
-        if (dis[x][y] >= goods_time) {
-            continue;  // 如果当前路径已经超过了货物的最大存在时间，则跳过
-        }
-
         for (auto& g_pair : gds) {
             Goods& g = g_pair.second;
-            if (g.targeted != -1 || g.left_time <= dis[x][y]) continue;  // 如果货物已被其他机器人锁定或者无法在消失前到达，则跳过
+            if (g.targeted != -1 || g.left_time <= dis[x][y]) continue;
             if (x == g.x && y == g.y) {
-                double priority = double(g.val) / dis[x][y];  // 计算优先级
+                double priority = double(g.val) / dis[x][y];
                 if (priority > max_priority) {
                     max_priority = priority;
                     target_index = g_pair.first;
@@ -158,16 +155,35 @@ pair<vector<int>, int> FindPath(int sX, int sY) {
         for (int i = 0; i < 4; ++i) {
             int nx = x + dx[i];
             int ny = y + dy[i];
-            if (IsOkRobotPath(nx, ny) && dis[nx][ny] == INF) {
+            if (IsOkRobotPath(robotid, nx, ny) && dis[nx][ny] == INF) {
                 q.push(make_pair(nx, ny));
                 dis[nx][ny] = dis[x][y] + 1;
                 prev_step[nx][ny] = make_pair(x, y);
             }
         }
     }
-
-    return make_pair(path, target_index);  // 如果没有找到路径，返回空路径和-1
+    if (target_index != -1) {
+        // 回溯路径
+        path.clear();
+        int px = sX;
+        int py = sY;
+        while (!(px == robot[robotid].x && py == robot[robotid].y)) {
+            int dir = -1;
+            int prev_x = prev_step[px][py].first;
+            int prev_y = prev_step[px][py].second;
+            if (prev_x - px == 1) dir = 0;
+            else if (px - prev_x == 1) dir = 1;
+            else if (prev_y - py == 1) dir = 2;
+            else if (py - prev_y == 1) dir = 3;
+            path.push_back(dir);
+            px = prev_x;
+            py = prev_y;
+        }
+        reverse(path.begin(), path.end());
+    }
+    return make_pair(path, target_index);
 }
+
 
 
 
@@ -190,7 +206,7 @@ void Robot_Control(int robotid)
         //如果没有目标，寻找货物目标
         int nowx = robot[robotid].x;
         int nowy = robot[robotid].y;
-        pair<vector<int>, int> tmp = FindPath(nowx, nowy);
+        pair<vector<int>, int> tmp = FindPath(robotid,nowx, nowy);
         if(tmp.second != -1){
             robot[robotid].path = tmp.first; 
             robot[robotid].target_gds = tmp.second;
@@ -199,6 +215,7 @@ void Robot_Control(int robotid)
         //.....
     }
 
+    robot_move(robotid);
     if(gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
     {
         if(robot[robotid].goods == 0){
@@ -210,7 +227,6 @@ void Robot_Control(int robotid)
         }
     }   //若处于目标货物位置
 
-    robot_move(robotid);
 }
 void Init()
 {
@@ -235,7 +251,7 @@ void Init()
     fflush(stdout);
 }
 
-int Input(int zhen)
+int Input()
 {
     scanf("%d%d", &id, &money);
 
@@ -248,13 +264,15 @@ int Input(int zhen)
         int x, y, val;
         scanf("%d%d%d", &x, &y, &val);
         Goods new_goods{x, y, val,goods_time,-1};  
-        gds[zhen*10 + num] = new_goods;
+        gds[id*10 + num] = new_goods;
     }
 
     //机器人信息
-    for(int i = 0; i < robot_num; i ++)
+    for (int i = 0; i < robot_num; i++)
     {
-        scanf("%d%d%d%d", &robot[i].goods, &robot[i].x, &robot[i].y, &robot[i].status);
+        int sts;
+        scanf("%d%d%d%d", &robot[i].goods, &robot[i].x, &robot[i].y, &sts);
+        robot[i].status = sts;
     }
 
     //轮船信息
@@ -271,16 +289,15 @@ int main()
     Init();
     for(int zhen = 1; zhen <= 15000; zhen ++)
     {
-        int id = Input(zhen);
+        int id = Input();
         
-        dec_gdstime();
         for(int i = 0; i < robot_num; i ++){
             Robot_Control(i);
-            printf("%d%d\n",robot[i].goods, robot[i].target_gds);
             //printf("move %d %d\n", i, rand() % 4);
         }
         puts("OK");
         fflush(stdout);
+        dec_gdstime();
     }
 
     return 0;
