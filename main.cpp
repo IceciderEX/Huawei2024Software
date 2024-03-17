@@ -85,7 +85,7 @@ bool IsOkRobotPath(int robotid, int x, int y) {
         if(i==robotid) continue;
         if (x == robot[i].x && y == robot[i].y) return false;
     }
-    if (MAP[x + 1][y + 1] == '#' || MAP[x + 1][y + 1] == '*') return false;
+    if (MAP[x+1][y+1] == '#' || MAP[x+1][y+1] == '*') return false;
     return true;
 }
 
@@ -96,6 +96,7 @@ void robot_move(int robotid)
 {
     if(robot[robotid].pathid<robot[robotid].path.size()){
     	printf("move %d %d\n",robotid, robot[robotid].path[robot[robotid].pathid]);
+    	robot[robotid].pathid++;
     }
 }
 
@@ -105,8 +106,8 @@ void FindPath(int robotid, int sX, int sY) {
     queue<pair<int, int>> q;
     double max_priority = -1.0;
 	//printf("Robotid:%d queue: %d",robotid ,q.empty());
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
             dis[i][j] = INF;
             prev_step[i][j] = make_pair(-1, -1);
         }
@@ -139,8 +140,8 @@ void FindPath(int robotid, int sX, int sY) {
                         int dir = -1;
                         int prev_x = prev_step[px][py].first;
                         int prev_y = prev_step[px][py].second;
-                        if (prev_x - px == 1) dir = 0;
-                        else if (px - prev_x == 1) dir = 1;
+                        if (prev_x - px == 1) dir = 1;
+                        else if (px - prev_x == 1) dir = 0;
                         else if (prev_y - py == 1) dir = 2;
                         else if (py - prev_y == 1) dir = 3;
                         robot[robotid].path.push_back(dir);
@@ -232,7 +233,6 @@ void Robot_Control(int robotid)
         //.....
     }
 
-    robot_move(robotid);
     if(robot[robotid].target_gds == -1&&gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
     {
         if(robot[robotid].goods == 0){
@@ -243,7 +243,8 @@ void Robot_Control(int robotid)
             printf("get %d\n", robotid);
         }
     }   //鑻ュ浜庣洰鏍囪揣鐗╀綅缃?
-
+    
+	if(robot[robotid].status == 1 ) robot_move(robotid);
 }
 void Init()
 {
