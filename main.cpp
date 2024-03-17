@@ -2,25 +2,25 @@
 
 using namespace std;
 
-const int n = 200;  //鍦板浘澶у皬n*n
-const int robot_num = 10;  //鏈哄櫒浜烘暟閲?
-const int berth_num = 10;  //娉婁綅鏁伴噺
+const int n = 200;  //地图大小n*n
+const int robot_num = 10;  //机器人数量
+const int berth_num = 10;  //泊位数量
 const int N = 210; 
-const int goods_time = 1000; //璐х墿瀛樺湪鏃堕棿涓?000甯?
-const int INF = 1e9 + 10; //鏃犵┓澶?
+const int goods_time = 1000; //货物存在时间为1000帧
+const int INF = 1e9 + 10; //无穷大
 const int dx[] = {1, -1, 0, 0};
-const int dy[] = {0, 0, 1, -1}; //鏂瑰悜鏁扮粍
+const int dy[] = {0, 0, 1, -1}; //方向数组
 
-//鏈哄櫒浜?
+//机器人
 struct Robot
 {
-    int x, y, goods; //鏈哄櫒浜哄潗鏍囦负(x, y), goods == 1琛ㄧず鎼哄甫鐗╁搧锛?鍚﹀垯鏈惡甯?
-    int status; //0琛ㄧず鎭㈠鐘舵€侊紝 1琛ㄧず姝ｅ父杩愯鐘舵€?
-    int target_gds = -1;  //鐩爣鐗╁搧
-    int target_berth = -1;  //鐩爣娉婁綅
-    int mbx, mby; //棰勮绉诲姩鍚庝笅涓€涓綅缃紝 鍚庣画鍙敤浜庨伩鍏嶇鎾?
-    int pathid = 0; //涓嬩竴姝ヨ矾寰勭储寮?
-    vector<int> path;//鏈哄櫒浜鸿矾寰?
+    int x, y, goods; //机器人坐标为(x, y), goods == 1表示携带物品， 否则未携带
+    int status; //0表示恢复状态， 1表示正常运行状态
+    int target_gds = -1;  //目标物品
+    int target_berth = -1;  //目标泊位
+    int mbx, mby; //预计移动后下一个位置， 后续可用于避免碰撞
+    int pathid = 0; //下一步路径索引
+    vector<int> path;//机器人路径
     Robot() {}
     Robot(int startX, int startY) {
         x = startX;
@@ -28,12 +28,12 @@ struct Robot
     }
 }robot[robot_num + 10];
 
-//娉婁綅
+//泊位
 struct Berth
 {
-    int x, y; //娉婁綅宸︿笂瑙掑潗鏍囦负(x, y)
-    int transport_time; //娉婁綅鍒拌櫄鎷熺偣鐨勬椂闂?
-    int loading_speed; //姣忓抚鍙互瑁呰浇鐨勭墿鍝佹暟
+    int x, y; //泊位左上角坐标为(x, y)
+    int transport_time; //泊位到虚拟点的时间
+    int loading_speed; //每帧可以装载的物品数
     Berth(){}
     Berth(int x, int y, int transport_time, int loading_speed) {
         this -> x = x;
@@ -43,31 +43,31 @@ struct Berth
     }
 }berth[berth_num + 10];
 
-//杞埞
+//轮船
 struct Boat
 {
     int num;
-    int pos;    //鐩爣娉婁綅锛?1琛ㄧず铏氭嫙鐐?
-    int status; //0琛ㄧず绉诲姩涓紝1琛ㄧず瑁呰揣鐘舵€佹垨杩愯緭瀹屾垚鐘舵€侊紝2琛ㄧず娉婁綅澶栫瓑寰呯姸鎬?
+    int pos;    //目标泊位，-1表示虚拟点
+    int status; //0表示移动中，1表示装货状态或运输完成状态，2表示泊位外等待状态
 }boat[10];
 
-int money, boat_capacity, id; //褰撳墠閲戦挶鏁帮紝杞埞瀹圭Н锛屽抚鍙?
+int money, boat_capacity, id; //当前金钱数，轮船容积，帧号
 
-char MAP[N][N]; //鍦板浘
+char MAP[N][N]; //地图
 
-//鐗╁搧
+//物品
 struct Goods{
-	int x,y;    //鐗╁搧浣嶇疆
-    int val;    //鐗╁搧浠峰€?
-    int left_time;  //鍓╀綑瀛樺湪鏃堕棿
-    int targeted; //琚摢涓満鍣ㄤ汉閿佸畾锛屾病鏈夎閿佸畾鏃朵负-1
+	int x,y;    //物品位置
+    int val;    //物品价值
+    int left_time;  //剩余存在时间
+    int targeted; //被哪个机器人锁定，没有被锁定时为-1
 };
 
 map<int,Goods> gds;
 int dis[N][N];
 pair<int, int> prev_step[N][N];
 
-//璐х墿瀛樺湪鏃堕棿鍑忓皯
+//货物存在时间减少
 void dec_gdstime()
 {
 	vector<int> tmp;
@@ -78,7 +78,7 @@ void dec_gdstime()
     }
     for(auto id : tmp) gds.erase(id);
 }
-//鍒ゆ柇(x,y)鏄惁鏄満鍣ㄤ汉涓嬩竴涓彲浠ュ幓寰€鐨勭偣
+//判断(x,y)是否是机器人下一个可以去往的点
 bool IsOkRobotPath(int robotid, int x, int y) {
     if (x < 0 || x > 199 || y < 0 || y >199) return false;
     for (int i = 0; i < robot_num; i++) {
@@ -91,7 +91,7 @@ bool IsOkRobotPath(int robotid, int x, int y) {
 
 
 
-//鏈哄櫒浜哄崟姝ョЩ鍔ㄦ寚浠?
+//机器人单步移动指令
 void robot_move(int robotid)
 {
     if(robot[robotid].pathid<robot[robotid].path.size()){
@@ -100,7 +100,7 @@ void robot_move(int robotid)
     }
 }
 
-// BFS瀵绘壘浠?startX, startY)鍒版渶浼樿揣鐗╃殑鏈€鐭矾寰?
+// BFS寻找从(startX, startY)到最优货物的最短路径
 void FindPath(int robotid, int sX, int sY) {
 	
     queue<pair<int, int>> q;
@@ -123,7 +123,7 @@ void FindPath(int robotid, int sX, int sY) {
 
         for (auto& g_pair : gds) {
             Goods& g = g_pair.second;
-            //printf("Goods:%d 被锁定？：%d\n",g_pair.first,g.targeted);
+            //printf("Goods:%d ����������%d\n",g_pair.first,g.targeted);
             if (g.targeted == 1 || g.left_time <= dis[x][y]){
             	continue;
             }
@@ -132,7 +132,7 @@ void FindPath(int robotid, int sX, int sY) {
                 if (priority > max_priority) {
                     max_priority = priority;
                     robot[robotid].target_gds = g_pair.first;
-                    // 鍥炴函璺緞
+                    // 回溯路径
                     robot[robotid].path.clear();
                     int px = x;
                     int py = y;
@@ -169,7 +169,7 @@ void FindPath(int robotid, int sX, int sY) {
 //	printf("Robotid:%d path:", robotid);
 //    for(auto pp : robot[robotid].path) printf("%d ",pp);
 //    printf("\n");
-//    for(int i = 0 ;i < 199 ;i++){//锟斤拷锟斤拷锟斤拷锟斤拷没锟斤拷锟斤拷锟斤拷 
+//    for(int i = 0 ;i < 199 ;i++){//��������û������ 
 //		for(int j=0;j<199;j++){
 //			for(auto g : gds)
 //			{
@@ -182,7 +182,7 @@ void FindPath(int robotid, int sX, int sY) {
 //	}
 	
     /*if (target_index != -1) {
-        // 鍥炴函璺緞
+        // 回溯路径
         path.clear();
         int px = sX;
         int py = sY;
@@ -204,22 +204,22 @@ void FindPath(int robotid, int sX, int sY) {
 }
 
 
-//鏈哄櫒浜鸿繍鍔?
+//机器人运动
 void Robot_Control(int robotid)
 {
-    /*寰呭畬鎴?
+    /*待完成
     if(robot[robotid].status == 0){
-        Robot_recover(robotid); //鏈哄櫒浜烘仮澶?寰呯爜
+        Robot_recover(robotid); //机器人恢复,待码
         break;
     }
 
     if(robot[robotid].goods == 1){
-        Robot_to_Berth(robotid); //鍓嶅線娉婁綅锛屽緟鐮?
+        Robot_to_Berth(robotid); //前往泊位，待码
         break;
     }*/
 
     if(robot[robotid].target_gds == -1||gds.find(robot[robotid].target_gds)==gds.end()){
-        //濡傛灉娌℃湁鐩爣锛屽鎵捐揣鐗╃洰鏍?
+        //如果没有目标，寻找货物目标
         int nowx = robot[robotid].x;
         int nowy = robot[robotid].y;
         FindPath(robotid,nowx, nowy);
@@ -242,17 +242,17 @@ void Robot_Control(int robotid)
             robot[robotid].path.clear();
             printf("get %d\n", robotid);
         }
-    }   //鑻ュ浜庣洰鏍囪揣鐗╀綅缃?
+    }   //若处于目标货物位置
     
 	if(robot[robotid].status == 1 ) robot_move(robotid);
 }
 void Init()
 {
-    //璇诲叆鍦板浘
+    //读入地图
     for(int i = 1; i <= n; i ++)
         scanf("%s", MAP[i] + 1);
 
-    //鍒濆鍖栨硦浣嶄俊鎭?
+    //初始化泊位信息
     for(int i = 0; i < berth_num; i ++)
     {
         int id;
@@ -260,7 +260,7 @@ void Init()
         scanf("%d%d%d%d", &berth[id].x, &berth[id].y, &berth[id].transport_time, &berth[id].loading_speed);
     }
 
-    //杞埞瀹圭Н
+    //轮船容积
     scanf("%d", &boat_capacity);
 
     char okk[100];
@@ -273,7 +273,7 @@ int Input()
 {
     scanf("%d%d", &id, &money);
 
-    //鏂板璐х墿
+    //新增货物
     int num;
     scanf("%d", &num);
 
@@ -285,7 +285,7 @@ int Input()
         gds[id*1000 + i] = new_goods;
     }
 
-    //鏈哄櫒浜轰俊鎭?
+    //机器人信息
     for (int i = 0; i < robot_num; i++)
     {
         int sts;
@@ -293,7 +293,7 @@ int Input()
         robot[i].status = sts;
     }
 
-    //杞埞淇℃伅
+    //轮船信息
     for(int i = 0; i < 5; i ++)
         scanf("%d%d\n", &boat[i].status, &boat[i].pos);
 
