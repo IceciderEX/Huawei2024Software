@@ -190,7 +190,7 @@ void Robot_Control(int robotid)
         break;
     }*/
 
-    if(robot[robotid].target_gds == -1||gds.find(robot[robotid].target_gds)==gds.end()){
+    if(robot[robotid].target_gds == -1&&robot[robotid].goods == 0){
         //如果没有目标，寻找货物目标
         int nowx = robot[robotid].x;
         int nowy = robot[robotid].y;
@@ -201,7 +201,7 @@ void Robot_Control(int robotid)
         //.....
     }
 
-    if(robot[robotid].target_gds == -1&&gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
+    if(robot[robotid].target_gds != -1&&gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
     {
         if(robot[robotid].goods == 0){
             gds.erase(robot[robotid].target_gds);
