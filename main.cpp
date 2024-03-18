@@ -175,18 +175,73 @@ void FindPath(int robotid, int sX, int sY) {
 
 }
 
+void Robot_to_Berth(int robotid)
+{
+    int sX = robot[robotid].x;
+    int sY = robot[robotid].y;
+    queue<pair<int, int>> q;
+	//printf("Robotid:%d queue: %d",robotid ,q.empty());
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            dis[i][j] = INF;
+            prev_step[i][j] = make_pair(-1, -1);
+        }
+    }
 
+    int target = -1;
+    int distance = INF;
+    for (int i=0 ; i<berth_num ; i++){
+        int tmp = abs(sX - berth[i].x) + abs(sY - berth[i].y);
+        if(tmp < distance){
+            distance = tmp;
+            target = i;
+        }
+    }
+
+    dis[sX][sY] = 0;
+    while (!q.empty()) {
+        pair<int, int> current = q.front();
+        q.pop();
+        int x = current.first;
+        int y = current.second;
+            
+        if (MAP[berth[target].x + 1][berth[target].y + 1] == 'B') {
+            robot[robotid].path.clear();
+            int px = x;
+            int py = y;
+            while (px != sX || py != sY) {
+                int dir = -1;
+                int prev_x = prev_step[px][py].first;
+                int prev_y = prev_step[px][py].second;
+                if (prev_x - px == 1) dir = 2;
+                else if (px - prev_x == 1) dir = 3;
+                else if (prev_y - py == 1) dir = 1;
+                else if (py - prev_y == 1) dir = 0;
+                robot[robotid].path.push_back(dir);
+                px = prev_x;
+                py = prev_y;
+            }
+            reverse(robot[robotid].path.begin(), robot[robotid].path.end());
+        }
+            
+        
+        for (int i = 0; i < 4; ++i) {
+            int nx = x + dx[i];
+            int ny = y + dy[i];
+            if (IsOkRobotPath(robotid, nx, ny) && dis[nx][ny] == INF) {
+                q.push(make_pair(nx, ny));
+                dis[nx][ny] = dis[x][y] + 1;
+                prev_step[nx][ny] = make_pair(x, y);
+            }
+        }
+    }
+}
 //机器人运动
 void Robot_Control(int robotid)
 {
     /*待完成
     if(robot[robotid].status == 0){
         Robot_recover(robotid); //机器人恢复,待码
-        break;
-    }
-
-    if(robot[robotid].goods == 1){
-        Robot_to_Berth(robotid); //前往泊位，待码
         break;
     }*/
 
@@ -204,6 +259,7 @@ void Robot_Control(int robotid)
     if(robot[robotid].target_gds != -1&&gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
     {
         if(robot[robotid].goods == 0){
+            robot[robotid].goods == 1;
             gds.erase(robot[robotid].target_gds);
             robot[robotid].target_gds = -1;
             robot[robotid].pathid = 0;
@@ -212,6 +268,19 @@ void Robot_Control(int robotid)
         }
     }   //若处于目标货物位置
     
+    if(robot[robotid].goods == 1){
+        if(robot[robotid].target_berth == -1){
+            Robot_to_Berth(robotid); //前往泊位
+        }
+        if(MAP[robot[robotid].x + 1][robot[robotid].y + 1] == 'B'){
+            robot[robotid].target_berth = -1;
+            robot[robotid].goods = 0;
+            robot[robotid].pathid = 0;
+            robot[robotid].path.clear();
+            printf("pull %d",robotid);
+        }
+    }
+
 	if(robot[robotid].status == 1 ) robot_move(robotid);
 }
 void Init()
