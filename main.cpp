@@ -34,6 +34,8 @@ struct Berth
     int x, y; //泊位左上角坐标为(x, y)
     int transport_time; //泊位到虚拟点的时间
     int loading_speed; //每帧可以装载的物品数
+    int busy;//泊位中是否有船或者即将有船 
+    int goods_num;//泊位中的货物数量 
     Berth(){}
     Berth(int x, int y, int transport_time, int loading_speed) {
         this -> x = x;
@@ -87,7 +89,7 @@ void dec_gdstime()
 //判断(x,y)是否是机器人下一个可以去往的点
 bool IsOkRobotPath(int robotid, int x, int y) {
     if (x < 0 || x > 199 || y < 0 || y >199) return false;
-    if (MAP[x+1][y+1] == '#' || MAP[x+1][y+1] == '*') return false;
+    if (MAP[x+1][y+1] == '#' || MAP[x+1][y+1] == '*' || MAP[x+1][y+1] == 'A') return false;
     return true;
 }
 
@@ -236,6 +238,75 @@ void Robot_to_Berth(int robotid)
         }
     }
 }
+
+void find_berth(int boat_id){//从虚拟点出发找泊位 
+	int tmp=2000000;
+	int finall=99;
+	for(int berth_id = 0; berth_id < 10 ;berth_id ++){
+		if(berth[berth_id].transport_time < tmp&& berth[berth_id].busy == 0){
+			tmp = berth[berth_id].transport_time;
+			finall = berth_id; 
+		}
+	} 
+	if(finall == 99) return;//实在找不到泊位就先不动 
+	printf("ship %d %d\n", boat_id, finall);//让船往前往耗时最少的泊位 
+	berth[finall].busy = 1;//将该泊位设置为忙碌状态 
+	return; 
+}
+void Boat_Init(){ 
+	for(int boat_id = 0; boat_id < 5; boat_id ++){
+		boat[boat_id].pos = -1;
+		find_berth(boat_id);
+	}
+}
+int check_go(int boat_id){//若装满了货物，让轮船出发 
+	if(boat[boat_id].num == boat_capacity) return 1;
+	return 0; 
+}
+void count_load_goods(int boat_id){//检查船上装了多少的货，这个位置需要机器人在pull的时候往berth的goods_num加1 
+	int goods_in_berth = berth[boat[boat_id].pos].goods_num; //港口中货物数量 
+	if(goods_in_berth <= berth[boat[boat_id].pos].loading_speed){//若装货速度大于等于货物数量 
+		if(boat_capacity >= boat[boat_id].num + goods_in_berth){//能一次性全部装上船 
+			boat[boat_id].num += goods_in_berth;
+			berth[boat[boat_id].pos].goods_num = 0; 
+		}else{//不能全部装上船 
+			berth[boat[boat_id].pos].goods_num -= boat_capacity - boat[boat_id].num; 
+			boat[boat_id].num = boat_capacity;
+		}
+	}else{//装货速度小于货物数量 
+		if(boat_capacity >= boat[boat_id].num + berth[boat[boat_id].pos].loading_speed){//能一次性装一次运载极限的货物装上船 
+			boat[boat_id].num += berth[boat[boat_id].pos].loading_speed;
+			berth[boat[boat_id].pos].goods_num -= berth[boat[boat_id].pos].loading_speed; 
+		}else{//船中装不下一次运载量的货 
+			berth[boat[boat_id].pos].goods_num -= boat_capacity - boat[boat_id].num;
+			boat[boat_id].num = boat_capacity;
+		}
+	}
+}
+int go_permisson[11];
+void Boat_action(){
+	for(int boat_id = 0; boat_id < 5; boat_id ++){
+		if(boat[boat_id].status == 0) continue;//运输中的船直接不管 
+		if(go_permisson[boat_id] == 1) {//因为装货最后处理，所以做了一点特殊处理，在下一帧开始的时候检查船只是否可以从港口出发 
+			berth[boat[boat_id].pos].busy = 0;
+			go_permisson[boat_id] = 0;
+			printf("go %d\n", boat_id);
+			continue;//如果这条船可以出发，切换到下一条船 
+		}
+		if(boat[boat_id].status == 1){
+			if(boat[boat_id].pos != -1){
+				count_load_goods(boat_id); 
+				go_permisson[boat_id] = check_go(boat_id);
+			}else{
+				find_berth(boat_id);
+			}
+		}
+		if(boat[boat_id].status == 2){//在泊位外等待时看有没有空闲的其他泊位可以去 
+			find_berth(boat_id);
+		}
+	}
+} 
+
 //机器人运动
 void Robot_Control(int robotid)
 {
@@ -291,14 +362,16 @@ void Robot_Control(int robotid)
         int by = berth[robot[robotid].target_berth].y;
 
         if(robot[robotid].x-bx>=0&&robot[robotid].x-bx<=3&&robot[robotid].y-by>=0&&robot[robotid].y-by<=3){
+            printf("pull %d\n",robotid);
+            berth[robot[robotid].target_berth].goods_num ++;
             robot[robotid].target_berth = -1;
             robot[robotid].goods = 0;
             robot[robotid].pathid = 0;
             robot[robotid].path.clear();
-            printf("pull %d\n",robotid);
         }
     }
 }
+
 void Init()
 {
     //读入地图
@@ -360,12 +433,14 @@ int main()
 //    freopen("output.txt", "r" ,stdin);
 //    freopen("test1.txt",  "w" ,stdout);
     Init();
+    Boat_Init();
     for(int zhen = 1; zhen <= 15000; zhen ++)
     {
         int id = Input();
         //for(auto g : gds) cout<<g.first<<" ";
         for(int i = 0; i < robot_num; i ++){
             Robot_Control(i);
+            Boat_action();
             //printf("move %d %d\n", i, rand() % 4);
         }
         puts("OK");
