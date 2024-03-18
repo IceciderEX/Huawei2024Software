@@ -76,7 +76,13 @@ void dec_gdstime()
         g.second.left_time -= 1;
         if(g.second.left_time <= 0) tmp.push_back(g.first);
     }
-    for(auto id : tmp) gds.erase(id);
+    for(auto id : tmp){
+        if(gds[id].targeted == 1){
+            for(int i = 0;i<robot_num;i++)
+                if(robot[i].target_gds == id) robot[i].target_gds == -1;
+        }
+        gds.erase(id);
+    }
 }
 //判断(x,y)是否是机器人下一个可以去往的点
 bool IsOkRobotPath(int robotid, int x, int y) {
@@ -123,7 +129,7 @@ void FindPath(int robotid, int sX, int sY) {
 
         for (auto& g_pair : gds) {
             Goods& g = g_pair.second;
-            //printf("Goods:%d ����������%d\n",g_pair.first,g.targeted);
+            
             if (g.targeted == 1 || g.left_time <= dis[x][y]){
             	continue;
             }
@@ -140,10 +146,10 @@ void FindPath(int robotid, int sX, int sY) {
                         int dir = -1;
                         int prev_x = prev_step[px][py].first;
                         int prev_y = prev_step[px][py].second;
-                        if (prev_x - px == 1) dir = 1;
-                        else if (px - prev_x == 1) dir = 0;
-                        else if (prev_y - py == 1) dir = 2;
-                        else if (py - prev_y == 1) dir = 3;
+                        if (prev_x - px == 1) dir = 2;
+                        else if (px - prev_x == 1) dir = 3;
+                        else if (prev_y - py == 1) dir = 1;
+                        else if (py - prev_y == 1) dir = 0;
                         robot[robotid].path.push_back(dir);
                         px = prev_x;
                         py = prev_y;
@@ -166,41 +172,7 @@ void FindPath(int robotid, int sX, int sY) {
             }
         }
     }
-//	printf("Robotid:%d path:", robotid);
-//    for(auto pp : robot[robotid].path) printf("%d ",pp);
-//    printf("\n");
-//    for(int i = 0 ;i < 199 ;i++){//��������û������ 
-//		for(int j=0;j<199;j++){
-//			for(auto g : gds)
-//			{
-//				if(i==g.second.x&&j==g.second.y){
-//					//cout<< g.second.x << " " << g.second.y << " " <<g.second.val<<endl;
-//					printf("Robotid:%d Robotx:%d Roboty:%d GoodsX:%d GoodsY:%d dis:%d\n",robotid ,sX ,sY ,g.second.x ,g.second.y ,dis[g.second.x][g.second.y]);
-//				}
-//			}
-//		}
-//	}
-	
-    /*if (target_index != -1) {
-        // 回溯路径
-        path.clear();
-        int px = sX;
-        int py = sY;
-        while (!(px == robot[robotid].x && py == robot[robotid].y)) {
-            int dir = -1;
-            int prev_x = prev_step[px][py].first;
-            int prev_y = prev_step[px][py].second;
-            if (prev_x - px == 1) dir = 0;
-            else if (px - prev_x == 1) dir = 1;
-            else if (prev_y - py == 1) dir = 2;
-            else if (py - prev_y == 1) dir = 3;
-            
-            path.push_back(dir);
-            px = prev_x;
-            py = prev_y;
-        }
-        reverse(path.begin(), path.end());
-    }*/
+
 }
 
 
@@ -223,10 +195,6 @@ void Robot_Control(int robotid)
         int nowx = robot[robotid].x;
         int nowy = robot[robotid].y;
         FindPath(robotid,nowx, nowy);
-//        printf("Robotid : %d ",robotid);
-//        printf("Pathid:%d PathSize:%d ",robot[robotid].pathid,robot[robotid].path.size());
-//        for(auto pp : robot[robotid].path)  cout<<pp<<" ";
-//        printf("\n");
         if(robot[robotid].target_gds!= -1){
             gds[robot[robotid].target_gds].targeted = 1;
         }
