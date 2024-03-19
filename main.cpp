@@ -69,7 +69,7 @@ struct Goods{
 map<int,Goods> gds;
 int dis[N][N];
 pair<int, int> prev_step[N][N];
-queue<Goods> gds_in_berth[berth_num + 10];
+queue<int> gds_in_berth[berth_num + 10];
 
 //货物存在时间减少
 void dec_gdstime()
@@ -320,14 +320,14 @@ void count_load_goods(int boat_id){//检查船上装了多少的货，以及更�
 			boat[boat_id].num += goods_in_berth;
 			berth[berthid].goods_num = 0; 
 			for(int i = 1 ;i <= goods_in_berth ;i ++){
-				berth[berthid].goods_val -= gds_in_berth[berthid].front().val;
+				berth[berthid].goods_val -= gds_in_berth[berthid].front();
 				gds_in_berth[berthid].pop();
 			}
 		}else{//不能全部装上船 
 			berth[berthid].goods_num -= boat_capacity - boat[boat_id].num; 
 			boat[boat_id].num = boat_capacity;
 			for(int i = 1 ;i <= boat_capacity - boat[boat_id].num ;i ++){
-				berth[berthid].goods_val -= gds_in_berth[berthid].front().val;
+				berth[berthid].goods_val -= gds_in_berth[berthid].front();
 				gds_in_berth[berthid].pop();
 			}
 		}
@@ -336,14 +336,14 @@ void count_load_goods(int boat_id){//检查船上装了多少的货，以及更�
 			boat[boat_id].num += berth[berthid].loading_speed;
 			berth[berthid].goods_num -= berth[berthid].loading_speed;
 			for(int i = 1 ;i <= berth[berthid].loading_speed ;i ++){
-				berth[berthid].goods_val -= gds_in_berth[berthid].front().val;
+				berth[berthid].goods_val -= gds_in_berth[berthid].front();
 				gds_in_berth[berthid].pop();
 			}
 		}else{//船中装不下一次运载量的货 
 			berth[berthid].goods_num -= boat_capacity - boat[boat_id].num;
 			boat[boat_id].num = boat_capacity;
 			for(int i = 1 ;i <= boat_capacity - boat[boat_id].num ;i ++){
-				berth[berthid].goods_val -= gds_in_berth[berthid].front().val;
+				berth[berthid].goods_val -= gds_in_berth[berthid].front();
 				gds_in_berth[berthid].pop();
 			}
 		}
