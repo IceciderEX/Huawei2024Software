@@ -89,7 +89,10 @@ void dec_gdstime()
 //判断(x,y)是否是机器人下一个可以去往的点
 bool IsOkRobotPath(int robotid, int x, int y) {
     if (x < 0 || x > 199 || y < 0 || y >199) return false;
-    if (MAP[x+1][y+1] == '#' || MAP[x+1][y+1] == '*' || MAP[x+1][y+1] == 'A') return false;
+    for(int i = 0 ; i < robot_num ; i++){
+        if(i!=robotid&&robot[i].x==robot[robotid].x&&robot[i].y==robot[robotid].y) return false;
+    }
+    if (MAP[x+1][y+1] == '#' || MAP[x+1][y+1] == '*' ) return false;
     return true;
 }
 
@@ -132,7 +135,8 @@ void FindPath(int robotid, int sX, int sY) {
             	continue;
             }
             if (x == g.x && y == g.y) {
-                double priority = double(g.val) / dis[x][y];
+                //double priority = (double(g.val))/( (double)dis[x][y]*(double)dis[x][y]*(double)dis[x][y]); //40000多
+                double priority = (double(g.val))/exp((double)dis[x][y]);
                 if (priority > max_priority) {
                     max_priority = priority;
                     robot[robotid].target_gds = g_pair.first;
@@ -195,14 +199,15 @@ void Robot_to_Berth(int robotid)
         int x = current.first;
         int y = current.second;
 
-        for (int i = 0 ; i < berth_num ; i++) {
-            int bx = berth[i].x;
-            int by = berth[i].y;
-            if (x>=bx&&x<=bx+3&&y<=by+3&&y>=by) {
-                double priority = 1.0/dis[x][y];
+        //for (int i = 0 ; i < berth_num ; i++) {
+            int bx = berth[robotid].x;
+            int by = berth[robotid].y;
+            if(x>=bx&&x<=bx+3&&y>=by&&y<=by+3){
+            //if (x==bx + robotid/3&&y == by +robotid%3) {
+                double priority = (double)berth[robotid].loading_speed/((double)dis[x][y]*(double)dis[x][y]);
                 if (priority > max_priority) {
                     max_priority = priority;
-                    robot[robotid].target_berth = i;
+                    robot[robotid].target_berth = robotid;
                     // 回溯路径
                     robot[robotid].path.clear();
                     int px = x;
@@ -225,7 +230,7 @@ void Robot_to_Berth(int robotid)
                     //printf("\n");
                 }
             }
-        }
+        //}
         
         for (int i = 0; i < 4; ++i) {
             int nx = x + dx[i];
@@ -326,6 +331,20 @@ void Robot_Control(int robotid)
             robot[robotid].path.clear();
             robot[robotid].pathid = 0;
         }
+        int x = robot[robotid].x;
+        int y = robot[robotid].y;
+        int nx,ny;
+        int step = 0;
+        bool f = false;
+        while(!f){
+            step = rand()%4;
+            if(step == 0) nx = x, ny = y + 1;
+            else if(step== 1) nx = x , ny = y - 1;
+            else if(step==2) nx = x - 1 , ny = y;
+            else nx = x + 1 , ny = y;
+            if(IsOkRobotPath(robotid,nx,ny)) f=true; 
+        }
+        printf("move %d %d\n",robotid,step);
     }
     
     if(robot[robotid].target_gds == -1&&robot[robotid].goods == 0){
@@ -361,7 +380,8 @@ void Robot_Control(int robotid)
         int bx = berth[robot[robotid].target_berth].x;
         int by = berth[robot[robotid].target_berth].y;
 
-        if(robot[robotid].x-bx>=0&&robot[robotid].x-bx<=3&&robot[robotid].y-by>=0&&robot[robotid].y-by<=3){
+        if(robot[robotid].x>=bx&&robot[robotid].x<=bx+3&&robot[robotid].y>=by&&robot[robotid].y<=by+3){
+        //if(robot[robotid].x==bx + robotid/3&&robot[robotid].y==by+robotid%3){
             printf("pull %d\n",robotid);
             berth[robot[robotid].target_berth].goods_num ++;
             robot[robotid].target_berth = -1;
@@ -440,9 +460,9 @@ int main()
         //for(auto g : gds) cout<<g.first<<" ";
         for(int i = 0; i < robot_num; i ++){
             Robot_Control(i);
-            Boat_action();
             //printf("move %d %d\n", i, rand() % 4);
         }
+        Boat_action();
         puts("OK");
         fflush(stdout);
         dec_gdstime();
