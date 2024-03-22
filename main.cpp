@@ -21,6 +21,7 @@ struct Robot
     int mbx, mby; //预计移动后下一个位置， 后续可用于避免碰撞
     int pathid = 0; //下一步路径索引
     int val; //当前携带货物的价值
+    int recover;
     vector<pair<int,int>> predpath;
     vector<int> path;//机器人路径
     Robot() {}
@@ -419,6 +420,8 @@ void Robot_Control(int robotid,int zhen)
 {
 
     if(robot[robotid].status == 0){
+        if(robot[robotid].recover == 0) robot[robotid].recover = 21 + robotid*2; 
+        robot[robotid].recover -= 1;
         if(robot[robotid].goods == 0){
             robot[robotid].target_gds = -1;
             robot[robotid].path.clear();
@@ -431,29 +434,13 @@ void Robot_Control(int robotid,int zhen)
             robot[robotid].predpath.clear();
             robot[robotid].pathid = 0;
         }    
+        //printf("move %d %d\n",robotid,rand()%4);
     }
-
-    if((robot[robotid].target_gds == -1&&robot[robotid].goods == 0)){
+    else{
+        if(robot[robotid].recover!=0) robot[robotid].recover--;
+        else{
+        if((robot[robotid].target_gds == -1&&robot[robotid].goods == 0)){
         //如果没有目标，寻找货物目标
-        int nowx = robot[robotid].x;
-        int nowy = robot[robotid].y;
-        FindPath(robotid,nowx, nowy);
-        if(robot[robotid].target_gds!= -1){
-            gds[robot[robotid].target_gds].targeted = 1;
-        }
-        //.....
-    }
-
-    if(robot[robotid].status == 1 ) robot_move(robotid);
-
-    if(robot[robotid].target_gds != -1&&gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
-    {
-        if(gds.find(robot[robotid].target_gds) == gds.end()){
-            
-            robot[robotid].target_gds = -1;
-            robot[robotid].path.clear();
-            robot[robotid].predpath.clear();
-            robot[robotid].pathid = 0;
             int nowx = robot[robotid].x;
             int nowy = robot[robotid].y;
             FindPath(robotid,nowx, nowy);
@@ -462,22 +449,40 @@ void Robot_Control(int robotid,int zhen)
             }
         }
 
-        if(robot[robotid].goods == 0){
-            robot[robotid].goods == 1;
-            robot[robotid].val = gds[robot[robotid].target_gds].val;
-            gds.erase(robot[robotid].target_gds);
-            robot[robotid].target_gds = -1;
-            robot[robotid].pathid = 0;
-            robot[robotid].path.clear();
-            robot[robotid].predpath.clear();
-            printf("get %d\n", robotid);
-        }
-    }   //若处于目标货物位置
+        if(robot[robotid].status == 1 ) robot_move(robotid);
+
+        if(robot[robotid].target_gds != -1&&gds[robot[robotid].target_gds].x == robot[robotid].x && gds[robot[robotid].target_gds].y == robot[robotid].y) 
+        {
+            if(gds.find(robot[robotid].target_gds) == gds.end()){
+            
+                robot[robotid].target_gds = -1;
+                robot[robotid].path.clear();
+                robot[robotid].predpath.clear();
+                robot[robotid].pathid = 0;
+                int nowx = robot[robotid].x;
+                int nowy = robot[robotid].y;
+                FindPath(robotid,nowx, nowy);
+                if(robot[robotid].target_gds!= -1){
+                    gds[robot[robotid].target_gds].targeted = 1;
+                }
+            }
+
+            if(robot[robotid].goods == 0){
+                robot[robotid].goods == 1;
+                robot[robotid].val = gds[robot[robotid].target_gds].val;
+                gds.erase(robot[robotid].target_gds);
+                robot[robotid].target_gds = -1;
+                robot[robotid].pathid = 0;
+                robot[robotid].path.clear();
+                robot[robotid].predpath.clear();
+                printf("get %d\n", robotid);
+           }
+      }   //若处于目标货物位置
     
-    if(robot[robotid].goods == 1){
-        if(robot[robotid].target_berth == -1){
-            Robot_to_Berth(robotid); //前往泊位
-        }
+      if(robot[robotid].goods == 1){
+          if(robot[robotid].target_berth == -1){
+                Robot_to_Berth(robotid); //前往泊位
+         }
 
         int bx = berth[robot[robotid].target_berth].x;
         int by = berth[robot[robotid].target_berth].y;
@@ -492,6 +497,8 @@ void Robot_Control(int robotid,int zhen)
             robot[robotid].pathid = 0;
             robot[robotid].path.clear();
             robot[robotid].predpath.clear();
+        }
+    }
         }
     }
 }
